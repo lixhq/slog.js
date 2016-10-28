@@ -1,9 +1,13 @@
 {
-  "name": "slog",
+  "name": "slog.js",
   "version": "1.0.0",
   "main": "src/index.js",
   "author": "Emil Ingerslev <emil@ingerslev.io>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lixhq/slog.js.git"
+  },
   "dependencies": {
     "colors": "^1.1.2",
     "lodash": "^4.16.4"
