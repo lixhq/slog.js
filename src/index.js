@@ -37,13 +37,15 @@ const levelsIndex = _.findIndex(allLevels, x => x === logLevelValue);
 if(levelsIndex === -1) {
   throw new Error(`Could not understand SLOG_LOG_LEVEL="${logLevelValue}". Valid values are ${allLevels.join(',')}`);
 }
-const enabledLevels = _.takeWhile(allLevels, (v,i) => {
-  return i <= levelsIndex;
-});
+const levels = _(allLevels)
+.map((v, i) => [v, i <= levelsIndex])
+.fromPairs()
+.value();
 
 _.templateSettings.interpolate =
 
 Log.prototype.log = function(level, template, metadata) {
+  if(levels[level] === false) return;
   const localMetadata = Object.assign({}, this.metadata, metadata || {});
   localMetadata.time = new Date();
   localMetadata.level = level;
