@@ -38,7 +38,7 @@ Log.prototype.log = function(level, template, metadata) {
   }
   localMetadata.message = caching[template](localMetadata);
   if(process.env.SLOG_LOG_JSON && process.env.SLOG_LOG_JSON.toLowerCase() === 'true') {
-    console.log(localMetadata)
+    console.log(JSON.stringify(localMetadata))
   } else {
     let {time, message, level, module} = localMetadata;
     delete localMetadata.message;
