@@ -22,6 +22,25 @@ const levelColors = {
   emerg: colors.red, alert: colors.red, crit: colors.red, error: colors.red, warn: colors.yellow, notice: colors.white, info: colors.white, debug: colors.gray
 };
 
+const logLevelValue = process.env.SLOG_LOG_LEVEL ? process.env.SLOG_LOG_LEVEL.toLowerCase() : 'debug';
+const allLevels = [
+  'emerg',
+  'alert',
+  'crit',
+  'error',
+  'warn',
+  'notice',
+  'info',
+  'debug',
+];
+const levelsIndex = _.findIndex(allLevels, x => x === logLevelValue);
+if(levelsIndex === -1) {
+  throw new Error(`Could not understand SLOG_LOG_LEVEL="${logLevelValue}". Valid values are ${allLevels.join(',')}`);
+}
+const enabledLevels = _.takeWhile(allLevels, (v,i) => {
+  return i <= levelsIndex;
+});
+
 _.templateSettings.interpolate =
 
 Log.prototype.log = function(level, template, metadata) {
