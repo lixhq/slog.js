@@ -12,8 +12,9 @@ function yyyymmdd(date) {
   return `${date.getFullYear()}/${pad(mm)}/${pad(dd)}-${pad(hh)}:${pad(MM)}:${pad(ss)}`;
 }
 
-const Log = function(metadata) {
+const Log = function(metadata, formatting) {
   this.metadata = metadata;
+  this.formatting = formatting;
 };
 
 const caching = {};
@@ -42,9 +43,7 @@ const levels = _(allLevels)
 .fromPairs()
 .value();
 
-_.templateSettings.interpolate =
-
-Log.prototype.log = function(level, template, metadata) {
+Log.prototype.log = function(level, template, metadata, formatting) {
   if(levels[level] === false) return;
   const localMetadata = Object.assign({}, this.metadata, metadata || {});
   localMetadata.time = new Date();
@@ -59,20 +58,54 @@ Log.prototype.log = function(level, template, metadata) {
   }
   localMetadata.message = caching[template](localMetadata);
   if(process.env.SLOG_LOG_JSON && process.env.SLOG_LOG_JSON.toLowerCase() === 'true') {
-    console.log(JSON.stringify(localMetadata))
+    console.log(JSON.stringify(_.mapValues(localMetadata, (data,key) => {
+      switch(this.formatting[key] || 'info') {
+        case 'error':
+          return data ? data.stack || data.toString() : data
+        case 'info':
+        default:
+          return data;
+      }
+    })))
   } else {
+    const noOfColumns = process.stdout.isTTY ? process.stdout.columns : 50;
     let {time, message, level, module} = localMetadata;
     delete localMetadata.message;
     delete localMetadata.level;
     delete localMetadata.time;
     delete localMetadata.module;
     module = module || 'global';
-    console.log(yyyymmdd(time).blue, levelColors[level](level), `${module}>`.blue, message, _.map(localMetadata, (v,k) => k.green + ": " + JSON.stringify(v)).join(' '));
+    metadataTyped = _.map(localMetadata, (data,key) => ({
+      type: this.formatting[key] || 'info',
+      data,
+      key,
+    }));
+    let metadataPrinted = metadataTyped.filter(({type}) => type !== 'error').map(({type,data,key}) => {
+      switch(type) {
+        case 'info':
+        default:
+          return key.green + ": " + JSON.stringify(data)
+      }
+    }).join(' ')
+    errors = metadataTyped.filter(({type}) => type === 'error');
+    if(errors.length > 0) {
+      metadataPrinted += "\n" + errors.map(({data, key}) => {
+        const prefix = `└┬─ ${key} `;
+        return `${prefix}${_.repeat('─', noOfColumns-prefix.length)}\n`.red + (data ? data.stack || data.toString() : '').replace(/^/gm, ` │ `.red) + `\n └${_.repeat('─', noOfColumns-2)}`.red;
+      }).join('\n')
+    }
+    console.log(yyyymmdd(time).blue, levelColors[level](level), `${module}>`.blue, message, metadataPrinted);
   }
 };
 
+Log.prototype.defaultLogFormatting = { error: 'error' };
+
 Log.prototype.context = function(context) {
-  return new Log(Object.assign({}, this.metadata, context));
+  return new Log(Object.assign({}, this.metadata, context), this.formatting);
+};
+
+Log.prototype.formatting = function(formatting) {
+  return new Log(this.context, formatting);
 };
 
 Log.prototype.module = function(_module) {
@@ -80,9 +113,9 @@ Log.prototype.module = function(_module) {
 };
 
 _.keys(levelColors).forEach(k => {
-  Log.prototype[k] = function(message, metadata) {
-    this.log(k, message, metadata);
+  Log.prototype[k] = function(message, metadata, formatting) {
+    this.log(k, message, metadata, formatting);
   };
 });
 
-module.exports = new Log({});
+module.exports = new Log({}, Log.prototype.defaultLogFormatting);
